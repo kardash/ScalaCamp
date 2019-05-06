@@ -1,18 +1,22 @@
 package camp.task_1
 
 import scala.annotation.tailrec
+import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.ExecutionContext.Implicits.global
 
 class Task1 extends App {
 
-  @tailrec
-  final def retry[A](block: () => A,
+  final def retry[A](block: () => Future[A],
                      acceptResult: A => Boolean,
-                     retries: List[FiniteDuration]): A = {
-    val a = block.apply()
-    if (acceptResult.apply(a) || retries.isEmpty) return a
-    Thread.sleep(retries.head.toSeconds)
-    retry(block, acceptResult, retries.tail)
+                     retries: List[FiniteDuration]): Future[A] = {
+    block().flatMap(result => {
+      if (acceptResult(result) || retries.isEmpty) {
+        Future.successful(result)
+      } else {
+        Thread.sleep(retries.head.toMillis)
+        retry(block, acceptResult, retries.tail)
+      }
+    })
   }
-
 }
